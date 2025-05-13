@@ -6,7 +6,7 @@ from tempocnn.feature import read_features
 
 # params
 model_name = 'cnn'
-input_file = 'minecraft.mp3'
+input_file = 'audio_tests/minecraft.mp3'
 frames = 256
 hop_length = 128
 sample_rate = 44100
