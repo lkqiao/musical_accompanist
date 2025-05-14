@@ -59,5 +59,4 @@ beat_times = np.unique(np.array(beat_times))
 clicks = librosa.clicks(times=beat_times, sr=sr, click_duration=0.03, length=len(signal))
 click_overlay = signal + clicks
 
-# Save result
 sf.write(f'audio_out/{os.path.splitext(filename)[0]}_clicks.mp3', click_overlay, sr)
