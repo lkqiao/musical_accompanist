@@ -38,7 +38,7 @@ win_dur = 45.0
 win_length = int((win_dur*sr)/hop_length)
 
 time_res = hop_length/sr
-print('Time resolution:', time_res)
+print('Time resolution:', time_res, 's')
 
 # maybe try wavelet transform instead of stft for onset detection (find 
 # power of frequency spectrum of each frame and compute spectral flux) 
@@ -88,16 +88,20 @@ plt.show()
 
 # add clicks to the original audio to check
 click_times = []
-for i, bpm in enumerate(dominant_tempos):
-    t_start = i * hop_length / sr
+t = 0.0
+end_time = len(signal) / sr
+frame_duration = hop_length / sr
+
+while t < end_time:
+    frame_idx = int(t / frame_duration)
+    if frame_idx >= len(dominant_tempos):
+        break
+    bpm = dominant_tempos[frame_idx]
     period = 60.0 / bpm
-    num_clicks = int((hop_length / sr) / period) + 1
-    for n in range(num_clicks):
-        click_time = t_start + n * period
-        if click_time < len(signal) / sr:
-            click_times.append(click_time)
+    click_times.append(t)
+    t += period
 
 clicks = librosa.clicks(times=click_times, sr=sr, length=len(signal))
-click_overlay = signal + 0.01*clicks
+click_overlay = signal + 0.1*clicks
 
 sf.write(f'audio_out/{os.path.splitext(filename)[0]}_clicks.mp3', click_overlay, sr)
