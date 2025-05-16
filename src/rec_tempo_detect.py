@@ -43,6 +43,8 @@ print('Time resolution:', time_res, 's')
 # maybe try wavelet transform instead of stft for onset detection (find 
 # power of frequency spectrum of each frame and compute spectral flux) 
 # what if each basis function was a wavelet + sin wave?
+
+# also need to detect the start of the signal (and rests in general)
 onset_env = librosa.onset.onset_strength(y=signal, sr=sr, hop_length=hop_length)
 if np.all(onset_env == 0): raise ValueError("Onset envelope is all zeros. Try a different audio file.")
 
