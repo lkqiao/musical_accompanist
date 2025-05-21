@@ -40,6 +40,10 @@ win_length = int((win_dur*sr)/hop_length)
 time_res = hop_length/sr
 print('Time resolution:', time_res, 's')
 
+# new approach: just window + lowpass filter each frame of the signal to 
+# like 20-45 Hz or something and then look at the max frequency component? 
+# maybe do this on the onset envelope if it works better
+
 # maybe try wavelet transform instead of stft for onset detection (find 
 # power of frequency spectrum of each frame and compute spectral flux) 
 # what if each basis function was a wavelet + sin wave?
