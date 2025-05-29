@@ -8,7 +8,7 @@ import os
 import numpy as np
 
 def compressor (audio, threshold_db=-20.0, ratio=4.0, makeup_gain_db=0.0, limit_output=True):
-    eps = 1e-10 
+    eps = 1e-10
     magnitude = np.abs(audio)
     audio_db = 20.0 * np.log10(magnitude + eps)
 
@@ -43,6 +43,16 @@ print('Time resolution:', time_res, 's')
 # new approach: just window + lowpass filter each frame of the signal to 
 # like 20-45 Hz or something and then look at the max frequency component? 
 # maybe do this on the onset envelope if it works better
+
+# maybe have the user clap a few times before to establiish a tempo to 
+# "calibrate" the alogrithm, not sure how useful this is in detecting the
+# tempo of the recording but it helps with syncing at the start
+
+# different modes
+#     1. solo mode: recording always follows the musician
+#     2. orchestral mode: musicians can set the specific timings of the 
+#        conductor and use it to practice (timings are determined from
+#        a video of the conductor in rehearsal) 
 
 # maybe try wavelet transform instead of stft for onset detection (find 
 # power of frequency spectrum of each frame and compute spectral flux) 
