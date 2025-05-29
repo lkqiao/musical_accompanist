@@ -40,9 +40,12 @@ win_length = int((win_dur*sr)/hop_length)
 time_res = hop_length/sr
 print('Time resolution:', time_res, 's')
 
-# new approach: just window + lowpass filter each frame of the signal to 
-# like 20-45 Hz or something and then look at the max frequency component? 
-# maybe do this on the onset envelope if it works better
+# new approach: 
+#     1. just window + lowpass filter each frame of the signal to 
+#        like 20-45 Hz or something and then look at the max frequency component? 
+#        maybe do this on the onset envelope if it works better
+#     2. similar to decoding an on-off keyed message (i.e. 1 if start of a beat, 
+#        0 if not start of a beat)?
 
 # maybe have the user clap a few times before to establiish a tempo to 
 # "calibrate" the alogrithm, not sure how useful this is in detecting the
