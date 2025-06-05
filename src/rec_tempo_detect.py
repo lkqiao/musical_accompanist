@@ -40,27 +40,6 @@ win_length = int((win_dur*sr)/hop_length)
 time_res = hop_length/sr
 print('Time resolution:', time_res, 's')
 
-# new approach: 
-#     1. just window + lowpass filter each frame of the signal to 
-#        like 20-45 Hz or something and then look at the max frequency component? 
-#        maybe do this on the onset envelope if it works better
-#     2. similar to decoding an on-off keyed message (i.e. 1 if start of a beat, 
-#        0 if not start of a beat)?
-
-# maybe have the user clap a few times before to establiish a tempo to 
-# "calibrate" the alogrithm, not sure how useful this is in detecting the
-# tempo of the recording but it helps with syncing at the start
-
-# different modes
-#     1. solo mode: recording always follows the musician
-#     2. orchestral mode: musicians can set the specific timings of the 
-#        conductor and use it to practice (timings are determined from
-#        a video of the conductor in rehearsal) 
-
-# maybe try wavelet transform instead of stft for onset detection (find 
-# power of frequency spectrum of each frame and compute spectral flux) 
-# what if each basis function was a wavelet + sin wave?
-
 # also need to detect the start of the signal (and rests in general)
 onset_env = librosa.onset.onset_strength(y=signal, sr=sr, hop_length=hop_length)
 if np.all(onset_env == 0): raise ValueError("Onset envelope is all zeros. Try a different audio file.")
