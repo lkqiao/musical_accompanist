@@ -45,8 +45,72 @@ def reduce_pedal(y, sr, output_path, strength=0.5, write_file=True):
     if write_file: sf.write(output_path, output_y, sr)
     return y, output_y
 
+def damped_bandpass(signal, sr, bandpass_low, bandpass_high, pedal_reduce=False, name=None, pedal_strength=0.5):
+    print('\n----------------- Preprocessing Signal -----------------\n')
+    # reduce pedal
+    original_signal = None
+    if pedal_reduce:
+        dampened_path = f'audio_out/{name}_dampened.mp3'
+        original_signal, signal = reduce_pedal(signal, sr, dampened_path, strength=pedal_strength)
+        signal /= np.max(np.abs(signal))
+
+    # bandpass filter original signal
+    signal = bandpass_filter(signal, sr, lowcut=bandpass_low, highcut=bandpass_high)
+    signal /= np.max(np.abs(signal)) # normalize
+    return original_signal, signal
+
+def get_onset_env(signal, sr, hop_length, lowpass_cutoff, alpha):
+    print('\n----------------- Getting Onset Envelope -----------------\n')
+    # find onset envelope
+    onset_env = librosa.onset.onset_strength(y=signal, sr=sr, hop_length=hop_length)
+    onset_env -= np.mean(onset_env)
+    if np.all(onset_env == 0): 
+        raise ValueError('Onset envelope is all zeros. Try a different audio file.')
+
+    # filter onset envelope
+    onset_env = lowpass_filter(onset_env, sr, cutoff=lowpass_cutoff, order=8)
+
+    # keep values avove threshold
+    threshold = alpha*np.max(onset_env)
+    threshold_idx = np.where(onset_env<threshold)[0]
+    onset_env[threshold_idx] = 0
+    return onset_env
+
+def get_tempogram_tempo_bins(onset_env, sr, hop_length, win_length, tempo_min=35, tempo_max=200, plot_tempogram=False, name=None, time_res=0):
+    print('\n----------------- Computing Tempogram and Tempo Bins -----------------\n')
+    # compute tempogram, skipping first bin
+    tempogram = librosa.feature.tempogram(onset_envelope=onset_env, sr=sr, hop_length=hop_length, win_length=win_length)[1:,:]
+    tempo_bins = librosa.tempo_frequencies(tempogram.shape[0], sr=sr, hop_length=hop_length)
+
+    # for limiting tempo of tempogram
+    fmin = max(tempo_min, tempo_bins[-1])
+    fmax = min(tempo_max, tempo_bins[0])
+
+    print(f'Max tempo: {fmax:.2f} BPM')
+    print(f'Min tempo: {fmin:.2f} BPM')
+    print(f'Number of tempo bins: {len(tempo_bins)}')
+
+    # plot tempogram
+    if plot_tempogram:
+        plt.figure(figsize=(12, 7))
+        librosa.display.specshow(tempogram, sr=sr, hop_length=hop_length, x_axis='time', 
+                                y_axis='tempo', cmap='inferno')
+        plt.ylim(fmin, fmax) 
+        plt.colorbar(label='Amplitude')
+        plt.title(f'{name} Tempogram')
+        plt.xlabel('Time (s)')
+        plt.ylabel('Tempo (BPM)')
+
+        yticks = np.arange(ceil(fmin), ceil(fmax), 10)
+        _ = plt.yticks(yticks)
+        _ = plt.xticks(np.linspace(0, tempogram.shape[1]*time_res, 20))
+        plt.show()
+    
+    return tempogram, tempo_bins, fmin, fmax
+
 # extract tempos from tempogram
-def extract_tempogram_tempos(tempogram, tempo_bins, fmin, fmax, peak_threshold=0.3, window_size=5):
+def extract_tempogram_tempos(tempogram, tempo_bins, fmin, fmax, time_res, peak_threshold=0.3, window_size=5):
+    print('\n----------------- Extracting Tempos -----------------\n')
     half_window = window_size//2
 
     # find indices of fmin and fmax in tempo_bins
@@ -57,6 +121,7 @@ def extract_tempogram_tempos(tempogram, tempo_bins, fmin, fmax, peak_threshold=0
 
     estim_tempos = []
     for i in range(tempogram.shape[1]):
+        print(f'Extracting tempos from tempogram: {(i+1)/tempogram.shape[1]*100:.1f}%', end='\r')
         col = np.abs(tempogram[fmax_idx:fmin_idx, i])
         peak_val = np.max(col)
         peak_idx = np.argmax(col) + fmax_idx
@@ -76,14 +141,22 @@ def extract_tempogram_tempos(tempogram, tempo_bins, fmin, fmax, peak_threshold=0
             estim_tempos.append(0)
         else: 
             estim_tempos.append(estim_tempos[i-1])
-    return np.array(estim_tempos)
+
+    tempo_t = np.arange(len(estim_tempos))*time_res
+    return np.array(estim_tempos), tempo_t
 
 def is_outlier(val, median, mad, threshold):
     return np.abs(val-median) > threshold*mad
 
 def process_tempos(data, threshold=3.5, max_iter=1000):
+    print('\n----------------- Processing tempos -----------------\n')
+
     cleaned = data.copy()
-    for _ in range(max_iter):
+    curr_max = max_iter/10
+    for i in range(max_iter):
+        if i >= curr_max: curr_max *= 10
+        else: print(f'Processing tempos: {(i+1)/curr_max*100:.1f}%', end='\r')
+
         median = np.median(cleaned)
         mad = np.median(np.abs(cleaned-median))
 
@@ -97,6 +170,23 @@ def process_tempos(data, threshold=3.5, max_iter=1000):
             elif cleaned[i] < median: cleaned[i] *= 2
 
     return cleaned
+
+def plot_estim_tempos(signal, sr, estim_tempos, tempo_t, fmin, fmax, name):
+    # plot estimated tempos and original signal
+    fig, ax1 = plt.subplots(figsize=(12, 4))
+    librosa.display.waveshow(signal, sr=sr, ax=ax1, label='Signal')
+    ax1.set_xlabel('Time (s)')
+    ax1.set_ylabel('Amplitude (Signal)', color='b')
+    ax1.tick_params(axis='y', labelcolor='b')
+
+    ax2 = ax1.twinx()
+    ax2.plot(tempo_t, estim_tempos, color='r', label='Estimated Tempo')
+    ax2.set_ylabel('Estimated Tempo (BPM)', color='r')
+    ax2.tick_params(axis='y', labelcolor='r')
+    ax2.set_yticks(np.arange(int(fmin), int(fmax), 10))
+    plt.title(f'{name} Estimated Tempos and Signal')
+    _ = fig.legend(loc='upper right', bbox_to_anchor=(0.9, 0.85))
+    plt.show()
 
 # detect start
 def detect_start(signal):
@@ -156,3 +246,26 @@ def generate_click_track_from_estimates(tempo_t, tempos, sr, duration, click_dur
     sin_wave = np.sin(2*np.pi*click_freq*np.arange(len(click_track))/sr)
     click_track *= sin_wave
     return click_track
+
+def synthesize_click_signal(signal, sr, click_track, pedal_reduce=False, original_signal=None, name=None):
+    start_frame = detect_start(signal)
+    click_track_aligned = zero_pad_signal(click_track, start_frame)
+
+    combined = signal + 0.5 * click_track_aligned[:len(signal)]
+    if pedal_reduce:
+        combined = original_signal + 0.5 * click_track_aligned[:len(signal)]
+
+    # save click track to file
+    click_track_path = f'audio_out/click_{name}.mp3'
+    sf.write(click_track_path, combined, sr)
+    print(f'Click track saved to: {click_track_path}')
+
+    # plot click track
+    plt.figure(figsize=(12, 4))
+    plt.plot(np.arange(len(combined))/sr, combined)
+    plt.title(f'Click Track for {name} (Aligned)')
+    plt.xlabel('Time (s)')
+    plt.ylabel('Amplitude')
+    plt.show()
+
+    return combined
