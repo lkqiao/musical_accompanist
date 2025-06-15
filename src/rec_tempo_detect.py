@@ -1,105 +1,151 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import librosa
-import librosa.display
 import soundfile as sf
+from scipy.signal import butter, sosfilt, lfilter, hilbert
 import os
+from math import ceil
 
-import numpy as np
+from rec_tempo_detect_helpers import *
 
-def compressor (audio, threshold_db=-20.0, ratio=4.0, makeup_gain_db=0.0, limit_output=True):
-    eps = 1e-10
-    magnitude = np.abs(audio)
-    audio_db = 20.0 * np.log10(magnitude + eps)
+#  choose audio file
+name = 'chopin_berceuse'
+filename = f'{name}.mp3'
 
-    over_threshold = audio_db > threshold_db
-    compressed_db = np.copy(audio_db)
-    compressed_db[over_threshold] = threshold_db + (audio_db[over_threshold] - threshold_db) / ratio
+# load audio file
+audio_path = f'audio_in/{filename}'
+if not os.path.exists(audio_path):
+	raise FileNotFoundError(f'Audio file not found: {audio_path}')
 
-    compressed_db += makeup_gain_db
+signal: np.ndarray
+signal, sr = librosa.load(audio_path, sr=None)  
+signal -= np.mean(signal) # remove DC offset
+t = np.arange(len(signal))/sr # get time vector
 
-    compressed_mag = 10.0 ** (compressed_db / 20.0)
-    compressed_audio = np.sign(audio) * compressed_mag
+print(f'Sample rate: {sr}')
+print(f'Signal length: {len(signal)}')
+print(f'Signal duration: {len(signal)/sr:.3f} s')
 
-    if limit_output:
-        compressed_audio = np.clip(compressed_audio, -1.0, 1.0)
+# ----------------------------------------------------------------------------------------------
+# define parameters
+hop_length = 256 # distance between frames
+win_dur = 2 # window duration in seconds (use 4 for percussive pieces, 2 for classical pieces)
 
-    return compressed_audio
+time_res = hop_length/sr # temporal resolution
+freq_res = 1/win_dur # frequency resolution
+win_length = int((win_dur*sr)/hop_length) # window length in frames
+print(f'Temporal resolution: {time_res:.3f} s')
+print(f'Frequency resolution: {freq_res:.3f} Hz/bin')
+print(f'Window length: {win_length} frames')
 
-# parameters
-filename = 'minecraft.mp3'
-signal, sr = librosa.load(f'audio_in/{filename}', sr=None)  
-signal = compressor(signal, ratio=1.25)
-print('Sample rate:', sr)
-print('Signal length:', len(signal))
+pedal_reduce = True
+pedal_strength = 0.5
 
-hop_length = 2048
-win_dur = 45.0 
-win_length = int((win_dur*sr)/hop_length)
+bandpass_high = 4000
+bandpass_low = 20
+lowpass_cutoff = 10000
 
-time_res = hop_length/sr
-print('Time resolution:', time_res, 's')
+tempo_min = 35
+tempo_max = 200
+alpha = 0.075
+plot_tempogram = True
 
-# also need to detect the start of the signal (and rests in general)
+peak_threshold = 0.2
+# ----------------------------------------------------------------------------------------------
+
+# reduce pedal
+original_signal = None
+if pedal_reduce:
+    dampened_path = f'audio_out/{name}_dampened.mp3'
+    original_signal, signal = reduce_pedal(signal, sr, dampened_path, strength=pedal_strength)
+    signal /= np.max(np.abs(signal))
+
+# bandpass filter original signal
+signal = bandpass_filter(signal, sr, lowcut=bandpass_low, highcut=bandpass_high)
+signal /= np.max(np.abs(signal)) # normalize
+
+# find onset envelope
 onset_env = librosa.onset.onset_strength(y=signal, sr=sr, hop_length=hop_length)
-if np.all(onset_env == 0): raise ValueError("Onset envelope is all zeros. Try a different audio file.")
+onset_env -= np.mean(onset_env)
+if np.all(onset_env == 0): 
+    raise ValueError('Onset envelope is all zeros. Try a different audio file.')
 
-# does autocorrelation of the onset envelope to get the tempogram
-tempogram = librosa.feature.tempogram(onset_envelope=onset_env, sr=sr,
-                                      hop_length=hop_length, win_length=win_length)
+# filter onset envelope
+onset_env = lowpass_filter(onset_env, sr, cutoff=lowpass_cutoff, order=8)
 
-# get rid of first row, which is the zero lag
-tempogram = tempogram[1:,:]
+# keep values avove threshold
+threshold = alpha*np.max(onset_env)
+threshold_idx = np.where(onset_env<threshold)[0]
+onset_env[threshold_idx] = 0
 
-# get the tempos and times from tempogram
-tempos = librosa.tempo_frequencies(tempogram.shape[0], sr=sr, hop_length=hop_length)
-times = librosa.frames_to_time(np.arange(tempogram.shape[1]), sr=sr, hop_length=hop_length)
+# compute tempogram, skipping first bin
+tempogram = librosa.feature.tempogram(onset_envelope=onset_env, sr=sr, hop_length=hop_length, win_length=win_length)[1:,:]
+tempo_bins = librosa.tempo_frequencies(tempogram.shape[0], sr=sr, hop_length=hop_length)
 
-# limit tempogram to a range of tempos
-min_bpm, max_bpm = 30, 200
-mask = (tempos >= min_bpm) & (tempos <= max_bpm)
-tempogram = tempogram[mask,:]
-tempos = tempos[mask] 
+# for limiting tempo of tempogram
+fmin = max(tempo_min, tempo_bins[-1])
+fmax = min(tempo_max, tempo_bins[0])
 
-# plot the tempogram
-plt.figure(figsize=(10, 4))
-librosa.display.specshow(tempogram, sr=sr, hop_length=hop_length,
-                         x_axis='time', y_axis='tempo', y_coords=tempos)
-plt.ylim(min(tempos), max(tempos))
-plt.title(f'Tempogram (win_dur = {win_dur} s) for {filename}')
-plt.colorbar(label='Autocorrelation')
-plt.tight_layout()
+print(f'Max tempo: {fmax:.2f} BPM')
+print(f'Min tempo: {fmin:.2f} BPM')
+print(f'Number of tempo bins: {len(tempo_bins)}')
+
+# plot tempogram
+if plot_tempogram:
+    plt.figure(figsize=(12, 8))
+    librosa.display.specshow(tempogram, sr=sr, hop_length=hop_length, x_axis='time', 
+                            y_axis='tempo', cmap='inferno')
+    plt.ylim(fmin, fmax) 
+    plt.colorbar(label='Amplitude')
+    plt.title(f'{name} Tempogram')
+    plt.xlabel('Time (s)')
+    plt.ylabel('Tempo (BPM)')
+
+    yticks = np.arange(ceil(fmin), ceil(fmax), 10)
+    _ = plt.yticks(yticks)
+    _ = plt.xticks(np.linspace(0, tempogram.shape[1]*time_res, 20))
+    plt.show()
+
+estim_tempos = extract_tempogram_tempos(tempogram, tempo_bins, fmin, fmax, peak_threshold=peak_threshold)
+print(f'Estimated tempos: {estim_tempos}')
+tempo_t = np.arange(len(estim_tempos))*time_res
+estim_tempos = process_tempos(estim_tempos)
+
+# plot estimated tempos and original signal
+fig, ax1 = plt.subplots(figsize=(12, 4))
+librosa.display.waveshow(signal, sr=sr, ax=ax1, label='Signal')
+ax1.set_xlabel('Time (s)')
+ax1.set_ylabel('Amplitude (Signal)', color='b')
+ax1.tick_params(axis='y', labelcolor='b')
+
+ax2 = ax1.twinx()
+ax2.plot(tempo_t, estim_tempos, color='r', label='Estimated Tempo')
+ax2.set_ylabel('Estimated Tempo (BPM)', color='r')
+ax2.tick_params(axis='y', labelcolor='r')
+ax2.set_yticks(np.arange(int(fmin), int(fmax), 10))
+plt.title(f'{name} Estimated Tempos and Signal')
+_ = fig.legend(loc='upper right', bbox_to_anchor=(0.9, 0.85))
 plt.show()
 
-# find the dominant tempo at each time frame
-max_indices = np.argmax(tempogram, axis=0)
-dominant_tempos = tempos[max_indices]
-print('Dominant tempos:', dominant_tempos)
+# align click track with first note
+start_frame = detect_start(signal)
+duration = len(signal)/sr
+click_track = generate_click_track_from_estimates(tempo_t, estim_tempos, sr, duration)
+click_track_aligned = zero_pad_signal(click_track, start_frame)
 
-# plot the dominant tempo vs time
-plt.figure(figsize=(10, 4))
-plt.plot(times, dominant_tempos, label='Dominant Tempo (BPM)')
+combined = signal + 0.5 * click_track_aligned[:len(signal)]
+if pedal_reduce:
+    combined = original_signal + 0.5 * click_track_aligned[:len(signal)]
+
+# save click track to file
+click_track_path = f'audio_out/click_{name}.mp3'
+sf.write(click_track_path, combined, sr)
+print(f'Click track saved to: {click_track_path}')
+
+# plot click track
+plt.figure(figsize=(12, 4))
+plt.plot(np.arange(len(combined))/sr, combined)
+plt.title(f'Click Track for {name} (Aligned)')
 plt.xlabel('Time (s)')
-plt.ylabel('Tempo (BPM)')
-plt.title('Tempo (BPM) vs Time (s)')
+plt.ylabel('Amplitude')
 plt.show()
-
-# add clicks to the original audio to check
-click_times = []
-t = 0.0
-end_time = len(signal) / sr
-frame_duration = hop_length / sr
-
-while t < end_time:
-    frame_idx = int(t / frame_duration)
-    if frame_idx >= len(dominant_tempos):
-        break
-    bpm = dominant_tempos[frame_idx]
-    period = 60.0 / bpm
-    click_times.append(t)
-    t += period
-
-clicks = librosa.clicks(times=click_times, sr=sr, length=len(signal))
-click_overlay = signal + 0.1*clicks
-
-sf.write(f'audio_out/{os.path.splitext(filename)[0]}_clicks.mp3', click_overlay, sr)
