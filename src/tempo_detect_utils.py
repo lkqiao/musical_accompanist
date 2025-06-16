@@ -2,8 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import librosa
 import soundfile as sf
-from scipy.signal import butter, sosfilt, lfilter, hilbert
-import os
+from scipy.signal import butter, sosfilt, hilbert
 from math import ceil
 
 # bandpass filter

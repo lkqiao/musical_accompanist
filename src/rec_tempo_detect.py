@@ -1,12 +1,8 @@
 import numpy as np
-import matplotlib.pyplot as plt
 import librosa
-import soundfile as sf
-from scipy.signal import butter, sosfilt, lfilter, hilbert
 import os
-from math import ceil
 
-from rec_tempo_detect_helpers import *
+import tempo_detect_utils
 
 #  choose audio file
 name = 'chopin_berceuse'
@@ -59,26 +55,26 @@ window_size = 5
 # ----------------------------------------------------------------------------------------------
 
 # preprocess signal
-original_signal, signal = damped_bandpass(signal, sr, bandpass_low, bandpass_high, 
+original_signal, signal = tempo_detect_utils.damped_bandpass(signal, sr, bandpass_low, bandpass_high, 
                                           pedal_reduce=pedal_reduce, name=name, pedal_strength=pedal_strength)
 
 # get onset envelope
-onset_env = get_onset_env(signal, sr, hop_length, lowpass_cutoff, alpha)
+onset_env = tempo_detect_utils.get_onset_env(signal, sr, hop_length, lowpass_cutoff, alpha)
 
 # get tempogram and tempo bins
-tempogram, tempo_bins, fmin, fmax = get_tempogram_tempo_bins(onset_env, sr, hop_length, win_length, tempo_min=tempo_min, tempo_max=tempo_max, 
+tempogram, tempo_bins, fmin, fmax = tempo_detect_utils.get_tempogram_tempo_bins(onset_env, sr, hop_length, win_length, tempo_min=tempo_min, tempo_max=tempo_max, 
                                                  plot_tempogram=plot_tempogram, name=name, time_res=time_res)
 
 # estimate tempo from tempogram
-estim_tempos, tempo_t = extract_tempogram_tempos(tempogram, tempo_bins, fmin, fmax, time_res, 
+estim_tempos, tempo_t = tempo_detect_utils.extract_tempogram_tempos(tempogram, tempo_bins, fmin, fmax, time_res, 
                                                  peak_threshold=peak_threshold, window_size=window_size)
-estim_tempos = process_tempos(estim_tempos)
+estim_tempos = tempo_detect_utils.process_tempos(estim_tempos)
 
 # plot estimated tempos and original signal
-plot_estim_tempos(signal, sr, estim_tempos, tempo_t, fmin, fmax, name)
+tempo_detect_utils.plot_estim_tempos(signal, sr, estim_tempos, tempo_t, fmin, fmax, name)
 
 # align click track with first note
 duration = len(signal)/sr
-click_track = generate_click_track_from_estimates(tempo_t, estim_tempos, sr, duration)
-click_signal = synthesize_click_signal(signal, sr, click_track, 
+click_track = tempo_detect_utils.generate_click_track_from_estimates(tempo_t, estim_tempos, sr, duration)
+click_signal = tempo_detect_utils.synthesize_click_signal(signal, sr, click_track, 
 									   pedal_reduce=pedal_reduce, original_signal=original_signal, name=name)
