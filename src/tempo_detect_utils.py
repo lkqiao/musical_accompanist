@@ -49,7 +49,7 @@ def damped_bandpass(signal, sr, bandpass_low, bandpass_high, pedal_reduce=False,
     # reduce pedal
     original_signal = None
     if pedal_reduce:
-        dampened_path = f'audio_out/{name}_dampened.mp3'
+        dampened_path = f'audio_out/partial_renders/{name}_dampened.mp3'
         original_signal, signal = reduce_pedal(signal, sr, dampened_path, strength=pedal_strength)
         signal /= np.max(np.abs(signal))
 
