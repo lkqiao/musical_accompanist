@@ -5,7 +5,7 @@ import os
 import tempo_detect_utils
 
 #  choose audio file
-name = 'chopin_berceuse'
+name = 'chopin_concerto_1'
 filename = f'{name}.mp3'
 
 # load audio file

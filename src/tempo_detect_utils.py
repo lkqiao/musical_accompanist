@@ -5,21 +5,18 @@ import soundfile as sf
 from scipy.signal import butter, sosfilt, hilbert
 from math import ceil
 
-# bandpass filter
 def bandpass_filter(signal, sr, lowcut=60, highcut=4000, order=5):
-    sos = butter(order, [lowcut, highcut], btype='bandpass', fs=sr, output='sos')
+    sos = butter(order, [lowcut, highcut], btype='bandpass', fs=sr, output='sos') # bandpass filter
     filtered_signal = sosfilt(sos, signal)
     return filtered_signal
 
-# lowpass filter
 def lowpass_filter(signal, sr, cutoff=4000, order=5):
-    sos = butter(order, cutoff, btype='lowpass', fs=sr, output='sos')
+    sos = butter(order, cutoff, btype='lowpass', fs=sr, output='sos') # lowpass filter
     filtered_signal = sosfilt(sos, signal)
     return filtered_signal
 
-# highpass filter
 def highpass_filter(signal, sr, cutoff=60, order=5):
-    sos = butter(order, cutoff, btype='highpass', fs=sr, output='sos')
+    sos = butter(order, cutoff, btype='highpass', fs=sr, output='sos') # highpass filter
     filtered_signal = sosfilt(sos, signal)
     return filtered_signal
 
@@ -250,9 +247,13 @@ def synthesize_click_signal(signal, sr, click_track, pedal_reduce=False, origina
     start_frame = detect_start(signal)
     click_track_aligned = zero_pad_signal(click_track, start_frame)
 
-    combined = signal + 0.5 * click_track_aligned[:len(signal)]
-    if pedal_reduce:
-        combined = original_signal + 0.5 * click_track_aligned[:len(signal)]
+    combined = None
+    if pedal_reduce: 
+        min_len = min(len(original_signal), len(click_track_aligned))
+        combined = original_signal[:min_len] + 0.5 * click_track_aligned[:min_len]
+    else:
+        min_len = min(len(signal), len(click_track_aligned))
+        combined = signal[:min_len] + 0.5 * click_track_aligned[:min_len]
 
     # save click track to file
     click_track_path = f'audio_out/click_{name}.mp3'
