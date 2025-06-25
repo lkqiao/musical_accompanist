@@ -52,29 +52,39 @@ plot_tempogram = True
 # for tempo estimation
 peak_threshold = 0.2
 window_size = 5
+
+# for postprocessing
+extra_processing = True
 # ----------------------------------------------------------------------------------------------
 
-# preprocess signal
-original_signal, signal = tempo_detect_utils.damped_bandpass(signal, sr, bandpass_low, bandpass_high, 
-                                          pedal_reduce=pedal_reduce, name=name, pedal_strength=pedal_strength)
+def estimate_tempo(signal, sr, name, hop_length, time_res, win_length, pedal_reduce, pedal_strength, bandpass_high, bandpass_low, 
+                   lowpass_cutoff, tempo_min, tempo_max, alpha, plot_tempogram, peak_threshold, window_size, extra_processing):
+	# preprocess signal
+    original_signal, signal = tempo_detect_utils.damped_bandpass(signal, sr, bandpass_low, bandpass_high, 
+                                            pedal_reduce=pedal_reduce, name=name, pedal_strength=pedal_strength)
 
-# get onset envelope
-onset_env = tempo_detect_utils.get_onset_env(signal, sr, hop_length, lowpass_cutoff, alpha)
+    # get onset envelope
+    onset_env = tempo_detect_utils.get_onset_env(signal, sr, hop_length, lowpass_cutoff, alpha)
 
-# get tempogram and tempo bins
-tempogram, tempo_bins, fmin, fmax = tempo_detect_utils.get_tempogram_tempo_bins(onset_env, sr, hop_length, win_length, tempo_min=tempo_min, tempo_max=tempo_max, 
-                                                 plot_tempogram=plot_tempogram, name=name, time_res=time_res)
+    # get tempogram and tempo bins
+    tempogram, tempo_bins, fmin, fmax = tempo_detect_utils.get_tempogram_tempo_bins(onset_env, sr, hop_length, win_length, tempo_min=tempo_min, 
+                                                                                    tempo_max=tempo_max, plot_tempogram=plot_tempogram, name=name, time_res=time_res)
 
-# estimate tempo from tempogram
-estim_tempos, tempo_t = tempo_detect_utils.extract_tempogram_tempos(tempogram, tempo_bins, fmin, fmax, time_res, 
-                                                 peak_threshold=peak_threshold, window_size=window_size)
-estim_tempos = tempo_detect_utils.process_tempos(estim_tempos)
+    # estimate tempo from tempogram
+    estim_tempos, tempo_t = tempo_detect_utils.extract_tempogram_tempos(tempogram, tempo_bins, fmin, fmax, time_res, 
+                                                                        peak_threshold=peak_threshold, window_size=window_size)
+    estim_tempos = tempo_detect_utils.process_tempos(estim_tempos)
 
-# plot estimated tempos and original signal
-tempo_detect_utils.plot_estim_tempos(signal, sr, estim_tempos, tempo_t, fmin, fmax, name)
+    # plot estimated tempos and original signal
+    tempo_detect_utils.plot_estim_tempos(signal, sr, estim_tempos, tempo_t, fmin, fmax, name)
 
-# align click track with first note
-duration = len(signal)/sr
-click_track = tempo_detect_utils.generate_click_track_from_estimates(tempo_t, estim_tempos, sr, duration)
-click_signal = tempo_detect_utils.synthesize_click_signal(signal, sr, click_track, 
-									   pedal_reduce=pedal_reduce, original_signal=original_signal, name=name)
+    # align click track with first note
+    duration = len(signal)/sr
+    click_track = tempo_detect_utils.generate_click_track_from_estimates(tempo_t, estim_tempos, sr, duration)
+    click_signal = tempo_detect_utils.synthesize_click_signal(signal, sr, click_track, pedal_reduce=pedal_reduce, 
+                                                              original_signal=original_signal, name=name)
+    return estim_tempos, click_track, click_signal
+
+estim_tempos, click_track, click_signal = estimate_tempo(signal, sr, name, hop_length, time_res, win_length, pedal_reduce, 
+                                                         pedal_strength, bandpass_high, bandpass_low, lowpass_cutoff, tempo_min, 
+                                                         tempo_max, alpha, plot_tempogram, peak_threshold, window_size)
