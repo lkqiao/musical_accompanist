@@ -102,7 +102,7 @@ def get_tempogram_tempo_bins(onset_env, sr, hop_length, win_length, tempo_min=35
         _ = plt.xticks(np.linspace(0, tempogram.shape[1]*time_res, 20))
         plt.show()
     
-    return tempogram, tempo_bins, fmin, fmax
+    return tempogram, tempo_bins, (fmin, fmax)
 
 # extract tempos from tempogram
 def extract_tempogram_tempos(tempogram, tempo_bins, fmin, fmax, time_res, peak_threshold=0.3, window_size=5):
@@ -165,6 +165,18 @@ def process_tempos(data, threshold=3.5, max_iter=1000):
             if cleaned[i] > median: cleaned[i] /= 2
             elif cleaned[i] < median: cleaned[i] *= 2
 
+    return cleaned
+
+def remove_spikes(data, threshold=2):
+    mean = np.mean(data)
+    std = np.std(data)
+
+    z_scores = (data-mean)/std
+    cleaned_nan = np.copy(data)
+    cleaned_nan[np.abs(z_scores)>threshold] = np.nan 
+
+    not_nan = ~np.isnan(cleaned_nan)
+    cleaned = np.interp(np.arange(len(data)), np.arange(len(data))[not_nan], cleaned_nan[not_nan])
     return cleaned
 
 def plot_estim_tempos(signal, sr, estim_tempos, tempo_t, fmin, fmax, name):
@@ -250,10 +262,10 @@ def synthesize_click_signal(signal, sr, click_track, pedal_reduce=False, origina
     combined = None
     if pedal_reduce: 
         min_len = min(len(original_signal), len(click_track_aligned))
-        combined = original_signal[:min_len] + 0.5 * click_track_aligned[:min_len]
+        combined = original_signal[:min_len] + 0.1 * click_track_aligned[:min_len]
     else:
         min_len = min(len(signal), len(click_track_aligned))
-        combined = signal[:min_len] + 0.5 * click_track_aligned[:min_len]
+        combined = signal[:min_len] + 0.1 * click_track_aligned[:min_len]
 
     # save click track to file
     click_track_path = f'audio_out/click_{name}.mp3'

@@ -5,7 +5,7 @@ import os
 import tempo_detect_utils
 
 #  choose audio file
-name = 'chopin_concerto_1'
+name = 'meditation_piano_acc'
 filename = f'{name}.mp3'
 
 # load audio file
@@ -35,26 +35,13 @@ print(f'Frequency resolution: {freq_res:.3f} Hz/bin')
 print(f'Window length: {win_length} frames')
 
 # for preprocessing
-pedal_reduce = True
-pedal_strength = 0.5
-bandpass_high = 4000
-bandpass_low = 20
+signal_preprocessing_params = (True, 0.5, 4000, 20) # pedal_reduce, pedal_strength, bandpass_high, bandpass_low
 
-# for onset envelope
-lowpass_cutoff = 10000
+# for onset envelope, tempogram, and tempo bins 
+onset_tempogram_params = (10000, 35, 200, 0.075, True) # lowpass_cutoff, tempo_min, tempo_max, alpha, plot_tempogram
 
-# for tempogram and tempo bins
-tempo_min = 35
-tempo_max = 200
-alpha = 0.075
-plot_tempogram = True
-
-# for tempo estimation
-peak_threshold = 0.2
-window_size = 5
-
-# for postprocessing
-extra_processing = True
+# for tempo estimation postprocessing
+tempo_postprocessing_params = (0.2, 5, True) # peak_threshold, window_size, extra_processing
 # ----------------------------------------------------------------------------------------------
 
 def estimate_tempo(signal, sr, name, hop_length, time_res, win_length, pedal_reduce, pedal_strength, bandpass_high, bandpass_low, 
@@ -67,16 +54,21 @@ def estimate_tempo(signal, sr, name, hop_length, time_res, win_length, pedal_red
     onset_env = tempo_detect_utils.get_onset_env(signal, sr, hop_length, lowpass_cutoff, alpha)
 
     # get tempogram and tempo bins
-    tempogram, tempo_bins, fmin, fmax = tempo_detect_utils.get_tempogram_tempo_bins(onset_env, sr, hop_length, win_length, tempo_min=tempo_min, 
+    tempogram, tempo_bins, frange = tempo_detect_utils.get_tempogram_tempo_bins(onset_env, sr, hop_length, win_length, tempo_min=tempo_min, 
                                                                                     tempo_max=tempo_max, plot_tempogram=plot_tempogram, name=name, time_res=time_res)
 
     # estimate tempo from tempogram
-    estim_tempos, tempo_t = tempo_detect_utils.extract_tempogram_tempos(tempogram, tempo_bins, fmin, fmax, time_res, 
+    estim_tempos, tempo_t = tempo_detect_utils.extract_tempogram_tempos(tempogram, tempo_bins, *frange, time_res, 
                                                                         peak_threshold=peak_threshold, window_size=window_size)
-    estim_tempos = tempo_detect_utils.process_tempos(estim_tempos)
+    estim_tempos = tempo_detect_utils.process_tempos(estim_tempos, threshold=1)
+    if extra_processing:
+        estim_tempos = tempo_detect_utils.process_tempos(estim_tempos, threshold=0.5)
+        estim_tempos = tempo_detect_utils.remove_spikes(estim_tempos, threshold=1)
 
     # plot estimated tempos and original signal
-    tempo_detect_utils.plot_estim_tempos(signal, sr, estim_tempos, tempo_t, fmin, fmax, name)
+    tempo_detect_utils.plot_estim_tempos(signal, sr, estim_tempos, tempo_t, *frange, name)
+
+    estim_tempos *= 2 # multiply by 2 for clearer sonification
 
     # align click track with first note
     duration = len(signal)/sr
@@ -85,6 +77,5 @@ def estimate_tempo(signal, sr, name, hop_length, time_res, win_length, pedal_red
                                                               original_signal=original_signal, name=name)
     return estim_tempos, click_track, click_signal
 
-estim_tempos, click_track, click_signal = estimate_tempo(signal, sr, name, hop_length, time_res, win_length, pedal_reduce, 
-                                                         pedal_strength, bandpass_high, bandpass_low, lowpass_cutoff, tempo_min, 
-                                                         tempo_max, alpha, plot_tempogram, peak_threshold, window_size)
+estim_tempos, click_track, click_signal = estimate_tempo(signal, sr, name, hop_length, time_res, win_length, *signal_preprocessing_params,
+                                                         *onset_tempogram_params, *tempo_postprocessing_params)
