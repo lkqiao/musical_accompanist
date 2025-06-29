@@ -42,7 +42,7 @@ def reduce_pedal(y, sr, output_path, strength=0.5, write_file=True):
     return y, output_y
 
 def damped_bandpass(signal, sr, bandpass_low, bandpass_high, pedal_reduce=False, name=None, pedal_strength=0.5):
-    print('\n----------------- Preprocessing Signal -----------------\n')
+    print('\n----------------- Preprocessing Signal -----------------')
     # reduce pedal
     original_signal = None
     if pedal_reduce:
@@ -56,7 +56,7 @@ def damped_bandpass(signal, sr, bandpass_low, bandpass_high, pedal_reduce=False,
     return original_signal, signal
 
 def get_onset_env(signal, sr, hop_length, lowpass_cutoff, alpha):
-    print('\n----------------- Getting Onset Envelope -----------------\n')
+    print('\n\n----------------- Getting Onset Envelope -----------------')
     # find onset envelope
     onset_env = librosa.onset.onset_strength(y=signal, sr=sr, hop_length=hop_length)
     onset_env -= np.mean(onset_env)
@@ -72,8 +72,8 @@ def get_onset_env(signal, sr, hop_length, lowpass_cutoff, alpha):
     onset_env[threshold_idx] = 0
     return onset_env
 
-def get_tempogram_tempo_bins(onset_env, sr, hop_length, win_length, tempo_min=35, tempo_max=200, plot_tempogram=False, name=None, time_res=0):
-    print('\n----------------- Computing Tempogram and Tempo Bins -----------------\n')
+def get_tempogram_tempo_bins(onset_env, sr, hop_length, win_length, tempo_min=35, tempo_max=200, plot_tempogram=False, name=None, time_res=0, max_wait_time=15):
+    print('\n\n----------------- Computing Tempogram and Tempo Bins -----------------')
     # compute tempogram, skipping first bin
     tempogram = librosa.feature.tempogram(onset_envelope=onset_env, sr=sr, hop_length=hop_length, win_length=win_length)[1:,:]
     tempo_bins = librosa.tempo_frequencies(tempogram.shape[0], sr=sr, hop_length=hop_length)
@@ -89,8 +89,7 @@ def get_tempogram_tempo_bins(onset_env, sr, hop_length, win_length, tempo_min=35
     # plot tempogram
     if plot_tempogram:
         plt.figure(figsize=(12, 7))
-        librosa.display.specshow(tempogram, sr=sr, hop_length=hop_length, x_axis='time', 
-                                y_axis='tempo', cmap='inferno')
+        librosa.display.specshow(tempogram, sr=sr, hop_length=hop_length, x_axis='time', y_axis='tempo', cmap='inferno')
         plt.ylim(fmin, fmax) 
         plt.colorbar(label='Amplitude')
         plt.title(f'{name} Tempogram')
@@ -100,13 +99,15 @@ def get_tempogram_tempo_bins(onset_env, sr, hop_length, win_length, tempo_min=35
         yticks = np.arange(ceil(fmin), ceil(fmax), 10)
         _ = plt.yticks(yticks)
         _ = plt.xticks(np.linspace(0, tempogram.shape[1]*time_res, 20))
-        plt.show()
+        print('Generating tempogram plot...')
+        plt.show(block=False)
+        plt.pause(max_wait_time)
     
     return tempogram, tempo_bins, (fmin, fmax)
 
 # extract tempos from tempogram
 def extract_tempogram_tempos(tempogram, tempo_bins, fmin, fmax, time_res, peak_threshold=0.3, window_size=5):
-    print('\n----------------- Extracting Tempos -----------------\n')
+    print('\n\n----------------- Extracting Tempos -----------------')
     half_window = window_size//2
 
     # find indices of fmin and fmax in tempo_bins
@@ -144,8 +145,8 @@ def extract_tempogram_tempos(tempogram, tempo_bins, fmin, fmax, time_res, peak_t
 def is_outlier(val, median, mad, threshold):
     return np.abs(val-median) > threshold*mad
 
-def process_tempos(data, threshold=3.5, max_iter=1000):
-    print('\n----------------- Processing tempos -----------------\n')
+def process_tempos(data, threshold=3.5, step_num=1, max_iter=1000):
+    print(f'\n\n----------------- Processing Tempos (Step {step_num}) -----------------')
 
     cleaned = data.copy()
     curr_max = max_iter/10
@@ -168,6 +169,7 @@ def process_tempos(data, threshold=3.5, max_iter=1000):
     return cleaned
 
 def remove_spikes(data, threshold=2):
+    print('\n\n----------------- Postprocessing Tempos -----------------')
     mean = np.mean(data)
     std = np.std(data)
 
@@ -179,7 +181,7 @@ def remove_spikes(data, threshold=2):
     cleaned = np.interp(np.arange(len(data)), np.arange(len(data))[not_nan], cleaned_nan[not_nan])
     return cleaned
 
-def plot_estim_tempos(signal, sr, estim_tempos, tempo_t, fmin, fmax, name):
+def plot_estim_tempos(signal, sr, estim_tempos, tempo_t, fmin, fmax, name, max_wait_time=7.5):
     # plot estimated tempos and original signal
     fig, ax1 = plt.subplots(figsize=(12, 4))
     librosa.display.waveshow(signal, sr=sr, ax=ax1, label='Signal')
@@ -194,7 +196,9 @@ def plot_estim_tempos(signal, sr, estim_tempos, tempo_t, fmin, fmax, name):
     ax2.set_yticks(np.arange(int(fmin), int(fmax), 10))
     plt.title(f'{name} Estimated Tempos and Signal')
     _ = fig.legend(loc='upper right', bbox_to_anchor=(0.9, 0.85))
-    plt.show()
+    print('Generating estimated tempos plot...')
+    plt.show(block=False)
+    plt.pause(max_wait_time)
 
 # detect start
 def detect_start(signal):
@@ -255,7 +259,7 @@ def generate_click_track_from_estimates(tempo_t, tempos, sr, duration, click_dur
     click_track *= sin_wave
     return click_track
 
-def synthesize_click_signal(signal, sr, click_track, pedal_reduce=False, original_signal=None, name=None):
+def synthesize_click_signal(signal, sr, click_track, pedal_reduce=False, original_signal=None, name=None, max_wait_time=7.5):
     start_frame = detect_start(signal)
     click_track_aligned = zero_pad_signal(click_track, start_frame)
 
@@ -278,6 +282,8 @@ def synthesize_click_signal(signal, sr, click_track, pedal_reduce=False, origina
     plt.title(f'Click Track for {name} (Aligned)')
     plt.xlabel('Time (s)')
     plt.ylabel('Amplitude')
-    plt.show()
+    print('Generating click track plot...')
+    plt.show(block=False)
+    plt.pause(max_wait_time)
 
     return combined
