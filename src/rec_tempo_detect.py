@@ -52,21 +52,21 @@ if __name__ == "__main__":
     t = np.arange(len(signal))/sr # get time vector
 
     print('----------------- Signal and Tempo Detection Stats -----------------')
-    print(f'    Sample rate: {sr}')
-    print(f'    Signal length: {len(signal)}')
-    print(f'    Signal duration: {len(signal)/sr:.3f} s')
+    print(f'Sample rate: {sr}')
+    print(f'Signal length: {len(signal)}')
+    print(f'Signal duration: {len(signal)/sr:.3f} s')
 
     # ----------------------------------------------------------------------------------------------
     # define parameters
-    hop_length = 512 # distance between frames
-    win_dur = 1.5 # window duration in seconds (use 4 for percussive pieces, <= 2 for classical pieces)
+    hop_length = 256 # distance between frames
+    win_dur = 1.75 # window duration in seconds (use 4 for percussive pieces, <= 2 for classical pieces)
 
     time_res = hop_length/sr # temporal resolution
     freq_res = 1/win_dur # frequency resolution
     win_length = int((win_dur*sr)/hop_length) # window length in frames
-    print(f'    Temporal resolution: {time_res:.3f} s')
-    print(f'    Frequency resolution: {freq_res:.3f} Hz/bin')
-    print(f'    Window length: {win_length} frames')
+    print(f'Temporal resolution: {time_res:.3f} s')
+    print(f'Frequency resolution: {freq_res:.3f} Hz/bin')
+    print(f'Window length: {win_length} frames')
 
     # for preprocessing
     signal_preprocessing_params = (True, 0.5, 4000, 20) # pedal_reduce, pedal_strength, bandpass_high, bandpass_low
