@@ -58,8 +58,8 @@ if __name__ == "__main__":
 
     # ----------------------------------------------------------------------------------------------
     # define parameters
-    hop_length = 256 # distance between frames
-    win_dur = 1.75 # window duration in seconds (use 4 for percussive pieces, <= 2 for classical pieces)
+    hop_length = 1024 # distance between frames
+    win_dur = 1.5 # window duration in seconds (use 4 for percussive pieces, <= 2 for classical pieces)
 
     time_res = hop_length/sr # temporal resolution
     freq_res = 1/win_dur # frequency resolution

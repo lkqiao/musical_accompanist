@@ -118,7 +118,12 @@ def extract_tempogram_tempos(tempogram, tempo_bins, fmin, fmax, time_res, peak_t
 
     estim_tempos = []
     for i in range(tempogram.shape[1]):
-        print(f'Extracting tempos from tempogram: {(i+1)/tempogram.shape[1]*100:.1f}%', end='\r')
+        bar_length = 30
+        progress = (i+1)/tempogram.shape[1]
+        filled_length = int(bar_length*progress)
+        bar = '=' * filled_length + '-' * (bar_length-filled_length)
+        print(f'Extracting tempos: [{bar}] ', end='\r')
+        
         col = np.abs(tempogram[fmax_idx:fmin_idx, i])
         peak_val = np.max(col)
         peak_idx = np.argmax(col) + fmax_idx
@@ -151,8 +156,15 @@ def process_tempos(data, threshold=3.5, step_num=1, max_iter=1000):
     cleaned = data.copy()
     curr_max = max_iter/10
     for i in range(max_iter):
-        if i >= curr_max: curr_max *= 10
-        else: print(f'Processing tempos: {(i+1)/curr_max*100:.1f}%', end='\r')
+        # progress bar
+        if i >= curr_max:
+            curr_max *= 10
+        else:
+            bar_length = 30
+            progress = (i+1)/curr_max
+            filled_length = int(bar_length*progress)
+            bar = '=' * filled_length + '-' * (bar_length-filled_length)
+            print(f'Processing tempos: [{bar}] ', end='\r')
 
         median = np.median(cleaned)
         mad = np.median(np.abs(cleaned-median))
@@ -188,6 +200,11 @@ def plot_estim_tempos(signal, sr, estim_tempos, tempo_t, fmin, fmax, name, max_w
     ax1.set_xlabel('Time (s)')
     ax1.set_ylabel('Amplitude (Signal)', color='b')
     ax1.tick_params(axis='y', labelcolor='b')
+
+    duration = len(signal) / sr
+    x_ticks = np.arange(0, duration+10, 10)
+    ax1.set_xticks(x_ticks)
+    plt.setp(ax1.get_xticklabels(), rotation=60, ha='right')
 
     ax2 = ax1.twinx()
     ax2.plot(tempo_t, estim_tempos, color='r', label='Estimated Tempo')
