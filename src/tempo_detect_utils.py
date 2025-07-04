@@ -6,17 +6,17 @@ from scipy.signal import butter, sosfilt, hilbert
 from math import ceil
 
 def bandpass_filter(signal, sr, lowcut=60, highcut=4000, order=5):
-    sos = butter(order, [lowcut, highcut], btype='bandpass', fs=sr, output='sos') # bandpass filter
+    sos = butter(order, [lowcut, highcut], btype='bandpass', fs=sr, output='sos') 
     filtered_signal = sosfilt(sos, signal)
     return filtered_signal
 
 def lowpass_filter(signal, sr, cutoff=4000, order=5):
-    sos = butter(order, cutoff, btype='lowpass', fs=sr, output='sos') # lowpass filter
+    sos = butter(order, cutoff, btype='lowpass', fs=sr, output='sos')
     filtered_signal = sosfilt(sos, signal)
     return filtered_signal
 
 def highpass_filter(signal, sr, cutoff=60, order=5):
-    sos = butter(order, cutoff, btype='highpass', fs=sr, output='sos') # highpass filter
+    sos = butter(order, cutoff, btype='highpass', fs=sr, output='sos') 
     filtered_signal = sosfilt(sos, signal)
     return filtered_signal
 
@@ -36,7 +36,7 @@ def reduce_pedal(y, sr, output_path, strength=0.5, write_file=True):
     suppression = 1.0-strength*inv_env
     suppressed_y = y*suppression
 
-    output_y = highpass_filter(suppressed_y, sr, cutoff=80, order=4) # highpass to reduce resonance
+    output_y = highpass_filter(suppressed_y, sr, cutoff=80, order=4)  # highpass to reduce resonance
     
     if write_file: sf.write(output_path, output_y, sr)
     return y, output_y
@@ -52,13 +52,14 @@ def damped_bandpass(signal, sr, bandpass_low, bandpass_high, pedal_reduce=False,
 
     # bandpass filter original signal
     signal = bandpass_filter(signal, sr, lowcut=bandpass_low, highcut=bandpass_high)
-    signal /= np.max(np.abs(signal)) # normalize
+    signal /= np.max(np.abs(signal))  # normalize
     return original_signal, signal
 
-def get_onset_env(signal, sr, hop_length, lowpass_cutoff, alpha):
+def get_onset_env(signal, sr, hop_length, lowpass_cutoff, onset_threshold, use_mean_onset=False):
     print('\n\n----------------- Getting Onset Envelope -----------------')
     # find onset envelope
-    onset_env = librosa.onset.onset_strength(y=signal, sr=sr, hop_length=hop_length)
+    aggregate = np.mean if use_mean_onset else np.max
+    onset_env = librosa.onset.onset_strength(y=signal, sr=sr, hop_length=hop_length, aggregate=aggregate)
     onset_env -= np.mean(onset_env)
     if np.all(onset_env == 0): 
         raise ValueError('Onset envelope is all zeros. Try a different audio file.')
@@ -67,7 +68,7 @@ def get_onset_env(signal, sr, hop_length, lowpass_cutoff, alpha):
     onset_env = lowpass_filter(onset_env, sr, cutoff=lowpass_cutoff, order=8)
 
     # keep values avove threshold
-    threshold = alpha*np.max(onset_env)
+    threshold = onset_threshold*np.max(onset_env)
     threshold_idx = np.where(onset_env<threshold)[0]
     onset_env[threshold_idx] = 0
     return onset_env
@@ -245,7 +246,7 @@ def generate_click_track_from_estimates(tempo_t, tempos, sr, duration, click_dur
     click_length = int(click_dur/1000*sr)
 
     change_idxs = np.where(np.floor(np.abs(np.diff(tempos)))!=0)[0]
-    change_idxs = np.concatenate(([0], change_idxs+1, [len(tempos)])) # always include the first index
+    change_idxs = np.concatenate(([0], change_idxs+1, [len(tempos)]))  # always include the first index
 
     # start at the first time
     current_time = tempo_t[0] if len(tempo_t) > 0 else 0.0
@@ -262,14 +263,14 @@ def generate_click_track_from_estimates(tempo_t, tempos, sr, duration, click_dur
         t_start = tempo_t[seg_start]
         t_end = tempo_t[seg_end-1] if seg_end < len(tempo_t) else duration
         T = 60.0/tempo
-        current_time = max(current_time, t_start) # always start placing clicks at the start of the segment
+        current_time = max(current_time, t_start)  # always start placing clicks at the start of the segment
         while current_time < t_end:
             idx = int(current_time*sr)
             if idx + click_length <= len(click_track):
                 click_track[idx:idx+click_length] += 0.5
             elif idx < len(click_track):
                 click_track[idx:] += 0.5
-            current_time += T # at the end of the segment, current_time is carried over to the next segment
+            current_time += T  # at the end of the segment, current_time is carried over to the next segment
 
     # modulate click track with sine wave
     sin_wave = np.sin(2*np.pi*click_freq*np.arange(len(click_track))/sr)
