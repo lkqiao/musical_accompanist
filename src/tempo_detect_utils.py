@@ -151,7 +151,7 @@ def is_outlier(val, median, mad, threshold):
     return np.abs(val-median) > threshold*mad
 
 def process_tempos(data, threshold=3.5, step_num=1, max_iter=1000):
-    print(f'\n\n----------------- Processing Tempos (Step {step_num}) -----------------')
+    print(f'\n\n----------------- Processing Tempos (Batch {step_num}) -----------------')
 
     cleaned = data.copy()
     curr_max = max_iter/10

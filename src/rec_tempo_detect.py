@@ -7,6 +7,9 @@ import tempo_detect_utils
 
 def estimate_tempo(signal, sr, name, hop_length, time_res, win_length, pedal_reduce, pedal_strength, bandpass_high, bandpass_low, 
                    lowpass_cutoff, tempo_min, tempo_max, alpha, plot_tempogram, peak_threshold, window_size, extra_processing, max_wait_time=15):
+    # remove DC offset
+    signal -= np.mean(signal)
+
 	# preprocess signal
     original_signal, signal = tempo_detect_utils.damped_bandpass(signal, sr, bandpass_low, bandpass_high, pedal_reduce=pedal_reduce, 
                                                                  name=name, pedal_strength=pedal_strength)
@@ -46,10 +49,7 @@ if __name__ == "__main__":
     if not os.path.exists(audio_path):
         raise FileNotFoundError(f'Audio file not found: {audio_path}')
 
-    signal: np.ndarray
     signal, sr = librosa.load(audio_path, sr=None)  
-    signal -= np.mean(signal) # remove DC offset
-    t = np.arange(len(signal))/sr # get time vector
 
     print('----------------- Signal and Tempo Detection Stats -----------------')
     print(f'Sample rate: {sr}')
@@ -58,7 +58,7 @@ if __name__ == "__main__":
 
     # ----------------------------------------------------------------------------------------------
     # define parameters
-    hop_length = 1024 # distance between frames
+    hop_length = 256 # distance between frames
     win_dur = 1.5 # window duration in seconds (use 4 for percussive pieces, <= 2 for classical pieces)
 
     time_res = hop_length/sr # temporal resolution
@@ -80,5 +80,4 @@ if __name__ == "__main__":
 
     estim_tempos, tempogram, click_track, click_signal = estimate_tempo(signal, sr, name, hop_length, time_res, win_length, *signal_preprocessing_params,
                                                                         *onset_tempogram_params, *tempo_postprocessing_params, max_wait_time=4)
-
-    input('Press enter to exit')
+    input()
