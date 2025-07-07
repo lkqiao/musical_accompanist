@@ -6,6 +6,30 @@ import matplotlib.pyplot as plt
 import tempo_detect_utils
 
 def estimate_tempo(signal, sr, name, hop_length, time_res, win_length, spp, otp, tpp, max_wait_time=15):
+    '''
+    Estimate the tempo of an audio signal using onset envelope and tempogram analysis.
+
+    This function processes an input audio signal to estimate its tempo over time. It removes DC offset, applies bandpass filtering to reduce pedal reverb, computes the onset envelope, and generates a tempogram to extract tempo estimates. Optionally, it processes the estimated tempos to remove spikes and smooth the results. The function also generates and aligns a click track with the detected tempo and synthesizes a corresponding click signal.
+
+    Args:
+        signal (np.ndarray): The input audio signal.
+        sr (int): Sampling rate of the audio signal.
+        name (str): Name identifier for the current processing (used for plotting and saving).
+        hop_length (int): Hop length for onset envelope and tempogram calculation.
+        time_res (float): Time resolution for tempogram analysis.
+        win_length (int): Window length for tempogram calculation.
+        spp (dict): Signal preprocessing parameters, including band limits and pedal reduction settings.
+        otp (dict): Onset envelope and tempogram parameters, such as local contrast, onset threshold, and tempo range.
+        tpp (dict): Tempo post-processing parameters, including peak threshold, window size, and spike removal options.
+        max_wait_time (float, optional): Maximum wait time for plotting and processing (in seconds). Default is 15.
+
+    Returns:
+        tuple: A tuple containing:
+            - estim_tempos (np.ndarray): Estimated tempo values over time.
+            - tempogram (np.ndarray): Computed tempogram matrix.
+            - click_track (np.ndarray): Generated click track aligned with estimated tempo.
+            - click_signal (np.ndarray): Synthesized audio signal of the click track.
+    '''
     # remove DC offset
     signal -= np.mean(signal)
 
@@ -14,7 +38,8 @@ def estimate_tempo(signal, sr, name, hop_length, time_res, win_length, spp, otp,
                                                                  name=name, pedal_strength=spp['peds'])
 
     # get onset envelope
-    onset_env = tempo_detect_utils.get_onset_env(signal, sr, hop_length, otp['lc'], otp['onth'], use_mean_onset=otp['mean'])
+    onset_env = tempo_detect_utils.get_onset_env(signal, sr, hop_length, otp['lc'], otp['onth'], 
+                                                 use_max=otp['max'], mean_max_weight=otp['mmw'])
 
     # get tempogram and tempo bins
     tempogram, tempo_bins, frange = tempo_detect_utils.get_tempogram_tempo_bins(onset_env, sr, hop_length, win_length, tempo_min=otp['tmin'], tempo_max=otp['tmax'], 
@@ -81,7 +106,8 @@ if __name__ == "__main__":
         'tmin': 35,  # tempo_min
         'tmax': 200,  # tempo_max
         'onth': 0.075,  # onset_threshold
-        'mean': False,  # use_mean_onset
+        'max': True,  # use_max
+        'mmw': (0.3,0.7),  # mean_max_weight
         'plt': True  # plot_tempogram
     }
 

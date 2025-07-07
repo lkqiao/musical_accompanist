@@ -6,27 +6,88 @@ from scipy.signal import butter, sosfilt, hilbert
 from math import ceil
 
 def bandpass_filter(signal, sr, lowcut=60, highcut=4000, order=5):
+    '''
+    Applies a bandpass Butterworth filter to the input signal.
+
+    Parameters:
+        signal (array-like): The input audio signal to be filtered.
+        sr (int): The sampling rate of the audio signal.
+        lowcut (float, optional): The lower frequency cutoff for the bandpass filter in Hz. Default is 60.
+        highcut (float, optional): The upper frequency cutoff for the bandpass filter in Hz. Default is 4000.
+        order (int, optional): The order of the Butterworth filter. Default is 5.
+
+    Returns:
+        numpy.ndarray: The filtered audio signal.
+    '''
     sos = butter(order, [lowcut, highcut], btype='bandpass', fs=sr, output='sos') 
     filtered_signal = sosfilt(sos, signal)
     return filtered_signal
 
 def lowpass_filter(signal, sr, cutoff=4000, order=5):
+    '''
+    Applies a low-pass Butterworth filter to the input signal.
+
+    Parameters:
+        signal (array-like): The input audio signal to be filtered.
+        sr (int): The sampling rate of the audio signal.
+        cutoff (float, optional): The cutoff frequency of the low-pass filter in Hz. Defaults to 4000.
+        order (int, optional): The order of the Butterworth filter. Defaults to 5.
+
+    Returns:
+        numpy.ndarray: The filtered audio signal.
+    '''
     sos = butter(order, cutoff, btype='lowpass', fs=sr, output='sos')
     filtered_signal = sosfilt(sos, signal)
     return filtered_signal
 
 def highpass_filter(signal, sr, cutoff=60, order=5):
+    '''
+    Applies a high-pass Butterworth filter to the input signal.
+
+    Args:
+        signal (np.ndarray): The input audio signal to be filtered.
+        sr (int): The sampling rate of the audio signal.
+        cutoff (float, optional): The cutoff frequency of the high-pass filter in Hz. Defaults to 60.
+        order (int, optional): The order of the Butterworth filter. Defaults to 5.
+
+    Returns:
+        np.ndarray: The filtered audio signal after applying the high-pass filter.
+    '''
     sos = butter(order, cutoff, btype='highpass', fs=sr, output='sos') 
     filtered_signal = sosfilt(sos, signal)
     return filtered_signal
 
 def apply_fir_filter(signal, window):
+    '''
+    Applies a Finite Impulse Response (FIR) filter to the input signal using the specified window.
+
+    Parameters:
+        signal (array-like): The input signal to be filtered.
+        window (array-like): The FIR filter coefficients (window). Will be normalized to sum to 1.
+
+    Returns:
+        numpy.ndarray: The filtered signal, same length as the input signal.
+    '''
     window = np.array(window)
     window /= np.sum(window)
     filtered = np.convolve(signal, window, mode='same')
     return filtered
 
 def reduce_pedal(y, sr, output_path, strength=0.5, write_file=True):
+    '''
+    Reduces the effect of piano pedal resonance in an audio signal.
+    This function applies envelope detection using the Hilbert transform to estimate the pedal resonance,
+    then suppresses the resonance by attenuating the signal where the envelope is high. A highpass filter
+    is applied to further reduce low-frequency resonance.
+    Args:
+        y (np.ndarray): Input audio signal.
+        sr (int): Sample rate of the audio signal.
+        output_path (str): Path to save the processed audio file.
+        strength (float, optional): Strength of pedal resonance suppression (0.0 to 1.0). Default is 0.5.
+        write_file (bool, optional): Whether to write the processed audio to a file. Default is True.
+    Returns:
+        tuple: (original audio signal, processed audio signal)
+    '''
     analytic_signal = hilbert(y) # envelope detection using hilbert transform
     envelope = np.abs(analytic_signal)
 
@@ -42,6 +103,23 @@ def reduce_pedal(y, sr, output_path, strength=0.5, write_file=True):
     return y, output_y
 
 def damped_bandpass(signal, sr, bandpass_low, bandpass_high, pedal_reduce=False, name=None, pedal_strength=0.5):
+    '''
+    Preprocesses an audio signal by optionally reducing pedal effects and applying a bandpass filter.
+
+    Parameters:
+        signal (np.ndarray): The input audio signal.
+        sr (int): The sampling rate of the audio signal.
+        bandpass_low (float): The lower cutoff frequency for the bandpass filter (in Hz).
+        bandpass_high (float): The upper cutoff frequency for the bandpass filter (in Hz).
+        pedal_reduce (bool, optional): Whether to apply pedal reduction to the signal. Defaults to False.
+        name (str, optional): The name used for saving the dampened audio file if pedal reduction is applied.
+        pedal_strength (float, optional): The strength of the pedal reduction effect (between 0 and 1). Defaults to 0.5.
+
+    Returns:
+        tuple:
+            original_signal (np.ndarray or None): The original signal before pedal reduction, or None if pedal reduction is not applied.
+            signal (np.ndarray): The processed and normalized signal after bandpass filtering.
+    '''
     print('\n----------------- Preprocessing Signal -----------------')
     # reduce pedal
     original_signal = None
@@ -55,11 +133,30 @@ def damped_bandpass(signal, sr, bandpass_low, bandpass_high, pedal_reduce=False,
     signal /= np.max(np.abs(signal))  # normalize
     return original_signal, signal
 
-def get_onset_env(signal, sr, hop_length, lowpass_cutoff, onset_threshold, use_mean_onset=False):
+def get_onset_env(signal, sr, hop_length, lowpass_cutoff, onset_threshold, use_max=True, mean_max_weight=(0.5,0.5)):
+    '''
+    Computes the onset envelope of an audio signal using librosa's onset detection.
+
+    Args:
+        signal (np.ndarray): The input audio signal.
+        sr (int): The sampling rate of the audio signal.
+        hop_length (int): Number of samples between successive onset envelope values.
+        lowpass_cutoff (float): Cutoff frequency (Hz) for the low-pass filter applied to the onset envelope.
+        onset_threshold (float): Threshold (as a fraction of the max) below which onset envelope values are set to zero.
+        use_max (bool, optional): If True, combines mean and max onset strength aggregations. Defaults to True.
+        mean_max_weight (tuple, optional): Weights for combining mean and max onset strength aggregations. Defaults to (0.5, 0.5).
+
+    Returns:
+        np.ndarray: The processed onset envelope.
+    '''
     print('\n\n----------------- Getting Onset Envelope -----------------')
-    # find onset envelope
-    aggregate = np.mean if use_mean_onset else np.max
-    onset_env = librosa.onset.onset_strength(y=signal, sr=sr, hop_length=hop_length, aggregate=aggregate)
+    # find onset envelope    
+    onset_env = librosa.onset.onset_strength(y=signal, sr=sr, hop_length=hop_length, aggregate=np.mean)
+    onset_env /= np.max(onset_env + 1e-9)
+    if use_max:
+        onset_env_max = librosa.onset.onset_strength(y=signal, sr=sr, hop_length=hop_length, aggregate=np.max)
+        onset_env_max /= np.max(onset_env_max + 1e-9)
+        onset_env = mean_max_weight[0]*onset_env + mean_max_weight[1]*onset_env_max
     onset_env -= np.mean(onset_env)
     if np.all(onset_env == 0): 
         raise ValueError('Onset envelope is all zeros. Try a different audio file.')
@@ -74,6 +171,31 @@ def get_onset_env(signal, sr, hop_length, lowpass_cutoff, onset_threshold, use_m
     return onset_env
 
 def get_tempogram_tempo_bins(onset_env, sr, hop_length, win_length, tempo_min=35, tempo_max=200, plot_tempogram=False, name=None, time_res=0, max_wait_time=15):
+    '''
+    Compute the tempogram and corresponding tempo bins from an onset envelope.
+    This function calculates the tempogram (a time–tempo representation) of an audio signal's onset envelope,
+    and returns the tempogram matrix, the tempo bins (in BPM), and the effective tempo range used for plotting.
+    Optionally, it can plot the tempogram for visualization.
+    Args:
+        onset_env (np.ndarray): Onset envelope of the audio signal.
+        sr (int): Sampling rate of the audio signal.
+        hop_length (int): Number of samples between successive onset envelope values.
+        win_length (int): Window length (in frames) for tempogram computation.
+        tempo_min (float, optional): Minimum tempo (in BPM) to display/consider. Defaults to 35.
+        tempo_max (float, optional): Maximum tempo (in BPM) to display/consider. Defaults to 200.
+        plot_tempogram (bool, optional): Whether to plot the tempogram. Defaults to False.
+        name (str, optional): Name to display in the plot title. Defaults to None.
+        time_res (float, optional): Time resolution per frame (in seconds) for x-axis ticks. Defaults to 0.
+        max_wait_time (float, optional): Maximum time (in seconds) to display the plot. Defaults to 15.
+    Returns:
+        tempogram (np.ndarray): The computed tempogram matrix (tempo x time).
+        tempo_bins (np.ndarray): Array of tempo bin centers (in BPM).
+        (fmin, fmax) (tuple): Tuple containing the effective minimum and maximum tempo (in BPM) used for plotting.
+    Notes:
+        - The first tempo bin is skipped in the tempogram computation.
+        - The function prints information about the computed tempo range and number of bins.
+        - If plot_tempogram is True, the function displays the tempogram plot for `max_wait_time` seconds.
+    '''
     print('\n\n----------------- Computing Tempogram and Tempo Bins -----------------')
     # compute tempogram, skipping first bin
     tempogram = librosa.feature.tempogram(onset_envelope=onset_env, sr=sr, hop_length=hop_length, win_length=win_length)[1:,:]
@@ -106,8 +228,28 @@ def get_tempogram_tempo_bins(onset_env, sr, hop_length, win_length, tempo_min=35
     
     return tempogram, tempo_bins, (fmin, fmax)
 
-# extract tempos from tempogram
 def extract_tempogram_tempos(tempogram, tempo_bins, fmin, fmax, time_res, peak_threshold=0.3, window_size=5):
+    '''
+    Extracts estimated tempo values over time from a tempogram matrix.
+    This function analyzes a tempogram (time-frequency representation of tempo strength)
+    and extracts the most prominent tempo at each time frame, using a weighted average
+    around the detected peak within a specified tempo range.
+    Args:
+        tempogram (np.ndarray): 2D array (tempo_bins x time) representing the tempogram.
+        tempo_bins (np.ndarray): 1D array of tempo bin values (e.g., BPM) corresponding to tempogram rows.
+        fmin (float): Minimum tempo (in BPM) to consider for peak detection.
+        fmax (float): Maximum tempo (in BPM) to consider for peak detection.
+        time_res (float): Time resolution (in seconds) per tempogram frame.
+        peak_threshold (float, optional): Minimum peak value to consider a valid tempo (default: 0.3).
+        window_size (int, optional): Number of bins around the peak to use for weighted averaging (default: 5).
+    Returns:
+        tuple:
+            - np.ndarray: Array of estimated tempo values (in BPM) for each time frame.
+            - np.ndarray: Array of time values (in seconds) corresponding to each tempo estimate.
+    Notes:
+        - If no peak above the threshold is found, the previous tempo is repeated (or zero for the first frame).
+        - The function prints progress and diagnostic information to the console.
+    '''
     print('\n\n----------------- Extracting Tempos -----------------')
     half_window = window_size//2
 
@@ -149,9 +291,38 @@ def extract_tempogram_tempos(tempogram, tempo_bins, fmin, fmax, time_res, peak_t
     return np.array(estim_tempos), tempo_t
 
 def is_outlier(val, median, mad, threshold):
+    '''
+    Determine if a value is an outlier based on the median absolute deviation (MAD) method.
+
+    Args:
+        val (float): The value to check.
+        median (float): The median of the dataset.
+        mad (float): The median absolute deviation of the dataset.
+        threshold (float): The number of MADs a value must differ from the median to be considered an outlier.
+
+    Returns:
+        bool: True if the value is an outlier, False otherwise.
+    '''
     return np.abs(val-median) > threshold*mad
 
 def process_tempos(data, threshold=3.5, step_num=1, max_iter=1000):
+    '''
+    Processes a list or array of tempo values by iteratively detecting and correcting outliers.
+
+    This function uses the median and median absolute deviation (MAD) to identify outliers in the input data.
+    Outliers are defined as values that deviate from the median by more than `threshold` times the MAD.
+    Detected outliers are adjusted: values above the median are halved, and values below the median are doubled.
+    The process repeats for a maximum of `max_iter` iterations or until no more outliers are found.
+
+    Args:
+        data (list or np.ndarray): The input tempo values to process.
+        threshold (float, optional): The number of MADs a value must differ from the median to be considered an outlier. Default is 3.5.
+        step_num (int, optional): The batch or step number for display/logging purposes. Default is 1.
+        max_iter (int, optional): The maximum number of iterations to perform. Default is 1000.
+
+    Returns:
+        list or np.ndarray: The cleaned tempo values with outliers adjusted.
+    '''
     print(f'\n\n----------------- Processing Tempos (Batch {step_num}) -----------------')
 
     cleaned = data.copy()
@@ -182,6 +353,16 @@ def process_tempos(data, threshold=3.5, step_num=1, max_iter=1000):
     return cleaned
 
 def remove_spikes(data, threshold=2):
+    '''
+    Removes spikes from a 1D NumPy array by replacing outliers (based on z-score threshold) with interpolated values.
+
+    Parameters:
+        data (np.ndarray): Input 1D array of numerical values.
+        threshold (float, optional): Z-score threshold to identify spikes. Values with absolute z-score greater than this are considered outliers. Default is 2.
+
+    Returns:
+        np.ndarray: Array with spikes removed and replaced by interpolated values.
+    '''
     print('\n\n----------------- Postprocessing Tempos -----------------')
     mean = np.mean(data)
     std = np.std(data)
@@ -195,6 +376,22 @@ def remove_spikes(data, threshold=2):
     return cleaned
 
 def plot_estim_tempos(signal, sr, estim_tempos, tempo_t, fmin, fmax, name, max_wait_time=7.5):
+    '''
+    Plots the estimated tempo curve alongside the original audio signal waveform.
+
+    Parameters:
+        signal (np.ndarray): The original audio signal.
+        sr (int): The sampling rate of the audio signal.
+        estim_tempos (np.ndarray): Array of estimated tempo values (in BPM) over time.
+        tempo_t (np.ndarray): Array of time values (in seconds) corresponding to each tempo estimate.
+        fmin (float): Minimum tempo (in BPM) for y-axis ticks.
+        fmax (float): Maximum tempo (in BPM) for y-axis ticks.
+        name (str): Name to display in the plot title.
+        max_wait_time (float, optional): Maximum time (in seconds) to display the plot. Defaults to 7.5.
+
+    Returns:
+        None
+    '''
     # plot estimated tempos and original signal
     fig, ax1 = plt.subplots(figsize=(12, 4))
     librosa.display.waveshow(signal, sr=sr, ax=ax1, label='Signal')
@@ -218,8 +415,19 @@ def plot_estim_tempos(signal, sr, estim_tempos, tempo_t, fmin, fmax, name, max_w
     plt.show(block=False)
     plt.pause(max_wait_time)
 
-# detect start
 def detect_start(signal):
+    '''
+    Detects the starting index of a signal where its amplitude first exceeds a threshold.
+
+    The threshold is set to 1% of the maximum absolute value in the signal. The function iterates
+    through the signal and returns the index of the first sample whose absolute value exceeds this threshold.
+
+    Args:
+        signal (np.ndarray): Input 1D signal array.
+
+    Returns:
+        int: Index of the first sample exceeding the threshold.
+    '''
     threshold = 0.01 * np.max(np.abs(signal))
     start_idx = 0
     for i, val in enumerate(signal):
@@ -228,8 +436,17 @@ def detect_start(signal):
             break
     return start_idx
 
-# zero pad signal to start at signal
 def zero_pad_signal(signal, start_frame):
+    '''
+    Adjusts the leading zeros of a signal array so that the first non-zero element appears at a specified frame index.
+
+    Parameters:
+        signal (np.ndarray): The input 1D signal array.
+        start_frame (int): The desired index for the first non-zero element.
+
+    Returns:
+        np.ndarray: The adjusted signal array, either zero-padded or truncated at the beginning so that the first non-zero element is at start_frame.
+    '''
     leading_zeros = np.argmax(signal != 0) if np.any(signal != 0) else len(signal)
 
     if leading_zeros < start_frame:
@@ -240,8 +457,25 @@ def zero_pad_signal(signal, start_frame):
     else:
         return signal
 
-# generate click track to verify estimated tempos
 def generate_click_track_from_estimates(tempo_t, tempos, sr, duration, click_dur=50, click_freq=1000):
+    '''
+    Generate a click track audio signal based on estimated tempo changes over time.
+
+    This function creates a click track (an array of audio samples) where clicks are placed at intervals
+    determined by the provided tempo estimates. The click track can handle segments with varying tempos,
+    and each click is modulated by a sine wave at a specified frequency.
+
+    Args:
+        tempo_t (np.ndarray): Array of time points (in seconds) corresponding to each tempo estimate.
+        tempos (np.ndarray): Array of tempo estimates (in beats per minute) for each segment.
+        sr (int): Sample rate of the audio (samples per second).
+        duration (float): Total duration of the click track (in seconds).
+        click_dur (int, optional): Duration of each click (in milliseconds). Default is 50 ms.
+        click_freq (int, optional): Frequency of the click sound (in Hz). Default is 1000 Hz.
+
+    Returns:
+        np.ndarray: The generated click track as a 1D NumPy array of audio samples.
+    '''
     click_track = np.zeros(int(sr*duration))
     click_length = int(click_dur/1000*sr)
 
@@ -278,6 +512,24 @@ def generate_click_track_from_estimates(tempo_t, tempos, sr, duration, click_dur
     return click_track
 
 def synthesize_click_signal(signal, sr, click_track, pedal_reduce=False, original_signal=None, name=None, max_wait_time=7.5):
+    '''
+    Synthesizes and saves a click track signal aligned with the input audio signal.
+
+    This function aligns a click track with the detected start of the input signal, optionally reduces pedal noise,
+    combines the signals, saves the result to an audio file, and plots the combined waveform.
+
+    Args:
+        signal (np.ndarray): The input audio signal array.
+        sr (int): The sample rate of the audio signals.
+        click_track (np.ndarray): The click track signal to be aligned and combined.
+        pedal_reduce (bool, optional): If True, uses the original signal for pedal noise reduction. Defaults to False.
+        original_signal (np.ndarray, optional): The original audio signal, required if pedal_reduce is True.
+        name (str, optional): Name identifier for saving the output file and plot title.
+        max_wait_time (float, optional): Maximum time in seconds to display the plot. Defaults to 7.5.
+
+    Returns:
+        np.ndarray: The combined audio signal with the aligned click track.
+    '''
     start_frame = detect_start(signal)
     click_track_aligned = zero_pad_signal(click_track, start_frame)
 
