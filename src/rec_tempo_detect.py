@@ -85,9 +85,6 @@ if __name__ == "__main__":
     time_res = hop_length/sr  # temporal resolution
     freq_res = 1/win_dur  # frequency resolution
     win_length = int((win_dur*sr)/hop_length)  # window length in frames
-    print(f'Temporal resolution: {time_res:.3f} s')
-    print(f'Frequency resolution: {freq_res:.3f} Hz/bin')
-    print(f'Window length: {win_length} frames')
 
     # for preprocessing
     signal_preprocessing_params = {
