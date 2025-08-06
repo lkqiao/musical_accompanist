@@ -77,11 +77,6 @@ if __name__ == "__main__":
 
     signal, sr = librosa.load(audio_path, sr=None)  
 
-    print('----------------- Signal and Tempo Detection Stats -----------------')
-    print(f'Sample rate: {sr}')
-    print(f'Signal length: {len(signal)}')
-    print(f'Signal duration: {len(signal)/sr:.3f} s')
-
     # ----------------------------------------------------------------------------------------------
     # define parameters
     hop_length = 256  # distance between frames
