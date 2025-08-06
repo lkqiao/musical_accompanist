@@ -162,7 +162,7 @@ def get_onset_env(signal, sr, hop_length, lowpass_cutoff, onset_threshold, use_m
         onset_env = mean_max_weight[0]*onset_env + mean_max_weight[1]*onset_env_max
     onset_env -= np.mean(onset_env)
     if np.all(onset_env == 0): 
-        raise ValueError('Onset envelope is all zeros. Try a different audio file.')
+        raise ValueError('No onsets detected. Try a different audio file.')
 
     # filter onset envelope
     onset_env = lowpass_filter(onset_env, sr, cutoff=lowpass_cutoff, order=8)
