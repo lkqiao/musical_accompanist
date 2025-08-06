@@ -13,7 +13,7 @@ def estimate_tempo(signal, sr, name, hop_length, time_res, win_length, spp, otp,
     Optionally, it processes the estimated tempos to remove spikes and smooth the results. The function also generates and 
     aligns a click track with the detected tempo and synthesizes a corresponding click signal.
 
-    Args:
+    Parameters:
         signal (np.ndarray): The input audio signal.
         sr (int): Sampling rate of the audio signal.
         name (str): Name identifier for the current processing (used for plotting and saving).
@@ -26,11 +26,11 @@ def estimate_tempo(signal, sr, name, hop_length, time_res, win_length, spp, otp,
         max_wait_time (float, optional): Maximum wait time for plotting and processing (in seconds). Default is 15.
 
     Returns:
-        tuple: A tuple containing:
-            - estim_tempos (np.ndarray): Estimated tempo values over time.
-            - tempogram (np.ndarray): Computed tempogram matrix.
-            - click_track (np.ndarray): Generated click track aligned with estimated tempo.
-            - click_signal (np.ndarray): Synthesized audio signal of the click track.
+        tuple:
+            estim_tempos (np.ndarray): Estimated tempo values over time.
+            tempogram (np.ndarray): Computed tempogram matrix.
+            click_track (np.ndarray): Generated click track aligned with estimated tempo.
+            click_signal (np.ndarray): Synthesized audio signal of the click track.
     '''
     # remove DC offset
     signal -= np.mean(signal)
