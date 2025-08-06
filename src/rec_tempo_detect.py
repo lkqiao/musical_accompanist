@@ -1,7 +1,6 @@
 import numpy as np
 import librosa
 import os
-import matplotlib.pyplot as plt
 
 import tempo_detect_utils
 
