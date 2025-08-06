@@ -62,7 +62,6 @@ if __name__ == "__main__":
 
     # collect all parameters into a dictionary
     config = {
-        'sr': sr,
         'hop_length': hop_length,
         'win_dur': win_dur,
         'signal_preprocessing_params': signal_preprocessing_params,

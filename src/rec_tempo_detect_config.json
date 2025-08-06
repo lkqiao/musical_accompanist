@@ -1,5 +1,4 @@
 {
-    "sr": 44100,
     "hop_length": 256,
     "win_dur": 1.5,
     "signal_preprocessing_params": {
