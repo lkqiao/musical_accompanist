@@ -1,0 +1,28 @@
+{
+    "sr": 44100,
+    "hop_length": 256,
+    "win_dur": 1.5,
+    "signal_preprocessing_params": {
+        "pedr": true,
+        "peds": 0.5,
+        "bh": 4000,
+        "bl": 20
+    },
+    "onset_tempogram_params": {
+        "lc": 10000,
+        "tmin": 35,
+        "tmax": 200,
+        "onth": 0.075,
+        "max": true,
+        "mmw": [
+            0.3,
+            0.7
+        ],
+        "plt": true
+    },
+    "tempo_postprocessing_params": {
+        "pth": 0.2,
+        "ws": 5,
+        "ep": true
+    }
+}

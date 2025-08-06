@@ -78,7 +78,6 @@ if __name__ == "__main__":
     signal, sr = librosa.load(audio_path, sr=None)  
 
     # ----------------------------------------------------------------------------------------------
-    # TODO: SAVE THESE PARAMETERS IN A JSON CONFIG FILE 
     # define parameters
     hop_length = 256  # distance between frames
     win_dur = 1.5  # window duration in seconds (use 4 for percussive pieces, <= 2 for classical pieces)
