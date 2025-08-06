@@ -117,7 +117,8 @@ def damped_bandpass(signal, sr, bandpass_low, bandpass_high, pedal_reduce=False,
 
     Returns:
         tuple:
-            original_signal (np.ndarray or None): The original signal before pedal reduction, or None if pedal reduction is not applied.
+            original_signal (np.ndarray or None): The original signal before pedal reduction, or None if pedal reduction is 
+                                                  not applied.
             signal (np.ndarray): The processed and normalized signal after bandpass filtering.
     '''
     print('\n----------------- Preprocessing Signal -----------------')
@@ -316,7 +317,8 @@ def process_tempos(data, threshold=3.5, step_num=1, max_iter=1000):
 
     Args:
         data (list or np.ndarray): The input tempo values to process.
-        threshold (float, optional): The number of MADs a value must differ from the median to be considered an outlier. Default is 3.5.
+        threshold (float, optional): The number of MADs a value must differ from the median to be considered an outlier. 
+                                     Default is 3.5.
         step_num (int, optional): The batch or step number for display/logging purposes. Default is 1.
         max_iter (int, optional): The maximum number of iterations to perform. Default is 1000.
 
@@ -358,7 +360,8 @@ def remove_spikes(data, threshold=2):
 
     Parameters:
         data (np.ndarray): Input 1D array of numerical values.
-        threshold (float, optional): Z-score threshold to identify spikes. Values with absolute z-score greater than this are considered outliers. Default is 2.
+        threshold (float, optional): Z-score threshold to identify spikes. Values with absolute z-score greater than 
+        this are considered outliers. Default is 2.
 
     Returns:
         np.ndarray: Array with spikes removed and replaced by interpolated values.
@@ -445,7 +448,8 @@ def zero_pad_signal(signal, start_frame):
         start_frame (int): The desired index for the first non-zero element.
 
     Returns:
-        np.ndarray: The adjusted signal array, either zero-padded or truncated at the beginning so that the first non-zero element is at start_frame.
+        np.ndarray: The adjusted signal array, either zero-padded or truncated at the beginning so that the first non-zero 
+                    element is at start_frame.
     '''
     leading_zeros = np.argmax(signal != 0) if np.any(signal != 0) else len(signal)
 

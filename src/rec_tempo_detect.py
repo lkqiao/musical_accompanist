@@ -8,7 +8,10 @@ def estimate_tempo(signal, sr, name, hop_length, time_res, win_length, spp, otp,
     '''
     Estimate the tempo of an audio signal using onset envelope and tempogram analysis.
 
-    This function processes an input audio signal to estimate its tempo over time. It removes DC offset, applies bandpass filtering to reduce pedal reverb, computes the onset envelope, and generates a tempogram to extract tempo estimates. Optionally, it processes the estimated tempos to remove spikes and smooth the results. The function also generates and aligns a click track with the detected tempo and synthesizes a corresponding click signal.
+    This function processes an input audio signal to estimate its tempo over time. It removes DC offset, applies bandpass 
+    filtering to reduce pedal reverb, computes the onset envelope, and generates a tempogram to extract tempo estimates. 
+    Optionally, it processes the estimated tempos to remove spikes and smooth the results. The function also generates and 
+    aligns a click track with the detected tempo and synthesizes a corresponding click signal.
 
     Args:
         signal (np.ndarray): The input audio signal.
