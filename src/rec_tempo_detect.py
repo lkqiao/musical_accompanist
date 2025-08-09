@@ -3,7 +3,7 @@ import os
 
 import accompanist
 
-if __name__ == "__main__":
+def main():
     # load audio file
     name = 'meditation_piano_acc'
     filename = f'{name}.mp3'
@@ -17,3 +17,6 @@ if __name__ == "__main__":
     config_file = 'config/rec_tempo_detect_config.json'
     accompanist.estimate_tempo(signal, sr, name, config_file, max_wait_time=4)
     input()
+
+if __name__ == "__main__":
+    main()

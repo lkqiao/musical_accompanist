@@ -1,31 +1,50 @@
 #!/usr/bin/env python3
-import sys
+import argparse
 import os
+import subprocess
+import sys
 import librosa
 import accompanist
 
-if __name__ == "__main__":
-    if len(sys.argv) < 3:
-        print("Usage: accomp-tempo <audio_file> <config_file> [--max-wait-time N]")
-        sys.exit(1)
+DEFAULT_CONFIG = "/Users/lukeqiao/Documents/Projects/accompanist/config/rec_tempo_detect_config.json"
 
-    audio_path = sys.argv[1]
-    config_file = sys.argv[2]
-    max_wait_time = 4
+def main():
+    p = argparse.ArgumentParser(description="Estimate tempo and optionally play click track")
+    p.add_argument("audio_file", help="Path to input audio file (absolute or relative)")
+    p.add_argument("--config", default=DEFAULT_CONFIG, help="Path to JSON config (default: repo config)")
+    p.add_argument("--name", type=str, default=None, help="Name for outputs (default: audio filename stem)")
+    p.add_argument("--max-wait-time", type=float, default=4.0, help="Max wait time")
+    p.add_argument("--play-click", action="store_true", help="Play generated click track after processing (macOS afplay)")
+    args = p.parse_args()
 
-    # Optional flag
-    if len(sys.argv) > 3 and sys.argv[3] == "--max-wait-time":
-        if len(sys.argv) > 4:
-            max_wait_time = float(sys.argv[4])
-        else:
-            print("Error: Missing value for --max-wait-time")
-            sys.exit(1)
+    audio_path = os.path.expanduser(args.audio_file)
+    config_path = os.path.expanduser(args.config)
 
     if not os.path.exists(audio_path):
-        raise FileNotFoundError(f"Audio file not found: {audio_path}")
-    if not os.path.exists(config_file):
-        raise FileNotFoundError(f"Config file not found: {config_file}")
+        sys.exit(f"Audio file not found: {audio_path}")
+    if not os.path.exists(config_path):
+        sys.exit(f"Config file not found: {config_path}")
 
+    # Load audio from anywhere
     signal, sr = librosa.load(audio_path, sr=None)
-    name = os.path.splitext(os.path.basename(audio_path))[0]
-    accompanist.estimate_tempo(signal, sr, name, config_file, max_wait_time=max_wait_time)
+
+    # Name defaults to audio filename (no extension)
+    name = args.name if args.name else os.path.splitext(os.path.basename(audio_path))[0]
+
+    # Run your pipeline
+    accompanist.estimate_tempo(signal, sr, name, config_path, max_wait_time=args.max_wait_time)
+
+    # Optionally play the click track
+    if args.play_click:
+        click_path = f"click_{name}.mp3"
+        if os.path.exists(click_path):
+            print(f"Playing click track: {click_path}")
+            try:
+                subprocess.run(["afplay", click_path], check=False)
+            except FileNotFoundError:
+                print("afplay not found (this flag is for macOS).")
+        else:
+            print(f"No click track found at {click_path}")
+
+if __name__ == "__main__":
+    main()
