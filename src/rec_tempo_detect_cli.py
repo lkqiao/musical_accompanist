@@ -36,7 +36,7 @@ def main():
 
     # Optionally play the click track
     if args.play_click:
-        click_path = f"click_{name}.mp3"
+        click_path = f"audio_out/click_{name}.mp3"
         if os.path.exists(click_path):
             print(f"Playing click track: {click_path}")
             try:
