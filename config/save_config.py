@@ -44,7 +44,7 @@ if __name__ == "__main__":
 
     # for onset envelope, tempogram, and tempo bins 
     onset_tempogram_params = {
-        'lc': 10000,  # lowpass_cutoff
+        'lc': 4000,  # lowpass_cutoff
         'tmin': 35,  # tempo_min
         'tmax': 200,  # tempo_max
         'onth': 0.075,  # onset_threshold
@@ -72,5 +72,5 @@ if __name__ == "__main__":
     config_json = convert(config)
 
     # save to json file
-    with open('src/rec_tempo_detect_config.json', 'w') as f:
+    with open('config/rec_tempo_detect_config.json', 'w') as f:
         json.dump(config_json, f, indent=4)

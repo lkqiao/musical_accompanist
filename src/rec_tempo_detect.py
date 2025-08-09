@@ -14,6 +14,6 @@ if __name__ == "__main__":
     signal, sr = librosa.load(audio_path, sr=None)
 
     # detect tempo
-    config_file = 'src/rec_tempo_detect_config.json'
+    config_file = 'config/rec_tempo_detect_config.json'
     accompanist.estimate_tempo(signal, sr, name, config_file, max_wait_time=4)
     input()

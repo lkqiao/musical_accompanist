@@ -8,7 +8,7 @@
         "bl": 20
     },
     "onset_tempogram_params": {
-        "lc": 10000,
+        "lc": 4000,
         "tmin": 35,
         "tmax": 200,
         "onth": 0.075,
